@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"image/png"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/shindakun/vec3"
@@ -27,6 +30,66 @@ type star struct {
 
 type starField struct {
 	stars []star
+}
+
+type letter struct {
+	letter rune
+	x      int
+	y      int
+	h      int
+	w      int
+}
+
+type letters struct {
+	letters []letter
+}
+
+func pixelsToTexture(renderer *sdl.Renderer, pixels []byte, w, h int) *sdl.Texture {
+	tex, err := renderer.CreateTexture(sdl.PIXELFORMAT_ABGR8888, sdl.TEXTUREACCESS_STREAMING, int32(w), int32(h))
+	if err != nil {
+		panic(err)
+	}
+	tex.Update(nil, pixels, w*4)
+	return tex
+}
+
+func pngToTexture(renderer *sdl.Renderer, filename string) *sdl.Texture {
+	infile, err := os.Open(filename)
+	if err != nil {
+		panic(err)
+	}
+	defer infile.Close()
+
+	img, err := png.Decode(infile)
+	if err != nil {
+		panic(err)
+	}
+	w := img.Bounds().Max.X
+	h := img.Bounds().Max.Y
+
+	pixels := make([]byte, wWidth*wHeight*4)
+	pIndex := 0
+
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			r, g, b, a := img.At(x, y).RGBA()
+			pixels[pIndex] = byte(r / 256)
+			pIndex++
+			pixels[pIndex] = byte(g / 256)
+			pIndex++
+			pixels[pIndex] = byte(b / 256)
+			pIndex++
+			pixels[pIndex] = byte(a / 256)
+			pIndex++
+		}
+	}
+
+	tex := pixelsToTexture(renderer, pixels, w, h)
+	err = tex.SetBlendMode(sdl.BLENDMODE_BLEND)
+	if err != nil {
+		panic(err)
+	}
+	return tex
 }
 
 func setPix(pixels []byte, x, y int, color rgb) {
@@ -55,6 +118,24 @@ func (s *starField) draw(pixels []byte) {
 func clear(pixels []byte) {
 	for i := range pixels {
 		pixels[i] = 0
+	}
+}
+
+func letterIn(letter rune, letters []letter) letter {
+	for i := 0; i < len(letters); i++ {
+		if letter == letters[i].letter {
+			return letters[i]
+		}
+	}
+	return letters[0]
+}
+
+func printFont(renderer *sdl.Renderer, font *sdl.Texture, letters []letter) {
+	hello := "HELLO WORLD"
+
+	for i := 0; i < len(hello); i++ {
+		a := letterIn(rune(hello[i]), letters)
+		renderer.Copy(font, &sdl.Rect{int32(a.x), int32(a.y), int32(a.w), int32(a.h)}, &sdl.Rect{int32(i * 32), 0, 32, 32})
 	}
 }
 
@@ -125,6 +206,24 @@ func main() {
 		zf.stars = append(zf.stars, z[i])
 	}
 
+	font := pngToTexture(renderer, "font2.png")
+
+	startingChar := 32
+	index := 0
+	letters := make([]letter, 60)
+	for y := 0; y < 6; y++ {
+		for x := 0; x < 10; x++ {
+			letters[index].letter = rune(startingChar + index)
+			letters[index].h = 32
+			letters[index].w = 32
+			letters[index].x = x * 32
+			letters[index].y = y * 32
+			index++
+		}
+	}
+	// fmt.Println(letters)
+	fmt.Println(letterIn('!', letters))
+
 	var elpasedTime float32
 	for {
 		frameStart := time.Now()
@@ -145,6 +244,7 @@ func main() {
 		sf.draw(pixels)
 		tex.Update(nil, pixels, wWidth*4)
 		renderer.Copy(tex, nil, nil)
+		printFont(renderer, font, letters)
 		renderer.Present()
 		clear(pixels)
 		elpasedTime = float32(time.Since(frameStart).Seconds() * 1000)
