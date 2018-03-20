@@ -26,7 +26,7 @@ type star struct {
 }
 
 type starField struct {
-	star []star
+	stars []star
 }
 
 func setPix(pixels []byte, x, y int, color rgb) {
@@ -39,11 +39,16 @@ func setPix(pixels []byte, x, y int, color rgb) {
 	}
 }
 
-func moveStars(stars []star, pixels []byte) {
-	for i := 0; i < len(stars); i++ {
-		newX := vec3.Add(stars[i].pos, stars[i].dir)
-		stars[i].pos.X = newX.X
-		setPix(pixels, int(stars[i].pos.X), int(stars[i].pos.Y), stars[i].color)
+func (s *starField) update() {
+	for i := 0; i < len(s.stars); i++ {
+		newX := vec3.Add(s.stars[i].pos, s.stars[i].dir)
+		s.stars[i].pos.X = newX.X
+	}
+}
+
+func (s *starField) draw(pixels []byte) {
+	for i := 0; i < len(s.stars); i++ {
+		setPix(pixels, int(s.stars[i].pos.X), int(s.stars[i].pos.Y), s.stars[i].color)
 	}
 }
 
@@ -80,6 +85,8 @@ func main() {
 
 	pixels := make([]byte, wWidth*wHeight*4)
 
+	var sf starField
+
 	s := make([]star, 400)
 	for i := 0; i < len(s); i++ {
 		s[i].pos.X = rand.Float32() * wWidth
@@ -88,16 +95,34 @@ func main() {
 		s[i].color.r = 255
 		s[i].color.b = 255
 		s[i].color.g = 255
+
+		sf.stars = append(sf.stars, s[i])
 	}
 
+	var tf starField
 	t := make([]star, 400)
 	for i := 0; i < len(s); i++ {
 		t[i].pos.X = rand.Float32() * wWidth
 		t[i].pos.Y = rand.Float32() * wHeight
 		t[i].dir.X = .7
-		t[i].color.r = 200
-		t[i].color.b = 200
-		t[i].color.g = 200
+		t[i].color.r = 170
+		t[i].color.b = 170
+		t[i].color.g = 170
+
+		tf.stars = append(tf.stars, t[i])
+	}
+
+	var zf starField
+	z := make([]star, 400)
+	for i := 0; i < len(s); i++ {
+		z[i].pos.X = rand.Float32() * wWidth
+		z[i].pos.Y = rand.Float32() * wHeight
+		z[i].dir.X = .5
+		z[i].color.r = 70
+		z[i].color.b = 70
+		z[i].color.g = 70
+
+		zf.stars = append(zf.stars, z[i])
 	}
 
 	var elpasedTime float32
@@ -110,8 +135,14 @@ func main() {
 			}
 		}
 
-		moveStars(t, pixels)
-		moveStars(s, pixels)
+		//moveStars(t, pixels)
+		//moveStars(s, pixels)
+		sf.update()
+		tf.update()
+		zf.update()
+		zf.draw(pixels)
+		tf.draw(pixels)
+		sf.draw(pixels)
 		tex.Update(nil, pixels, wWidth*4)
 		renderer.Copy(tex, nil, nil)
 		renderer.Present()
