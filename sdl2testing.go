@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"image/png"
 	"math/rand"
 	"os"
@@ -36,12 +35,15 @@ type letter struct {
 	letter rune
 	x      int
 	y      int
-	h      int
-	w      int
 }
 
 type letters struct {
 	letters []letter
+	text    string
+	h       int
+	w       int
+	dir     vec3.Vector3
+	pos     vec3.Vector3
 }
 
 func pixelsToTexture(renderer *sdl.Renderer, pixels []byte, w, h int) *sdl.Texture {
@@ -92,7 +94,7 @@ func pngToTexture(renderer *sdl.Renderer, filename string) *sdl.Texture {
 	return tex
 }
 
-func setPix(pixels []byte, x, y int, color rgb) {
+func setPixels(pixels []byte, x, y int, color rgb) {
 	count := (y*wWidth + x) * 4
 
 	if count < len(pixels)-4 && count >= 0 {
@@ -111,7 +113,7 @@ func (s *starField) update() {
 
 func (s *starField) draw(pixels []byte) {
 	for i := 0; i < len(s.stars); i++ {
-		setPix(pixels, int(s.stars[i].pos.X), int(s.stars[i].pos.Y), s.stars[i].color)
+		setPixels(pixels, int(s.stars[i].pos.X), int(s.stars[i].pos.Y), s.stars[i].color)
 	}
 }
 
@@ -130,12 +132,37 @@ func letterIn(letter rune, letters []letter) letter {
 	return letters[0]
 }
 
-func printFont(renderer *sdl.Renderer, font *sdl.Texture, letters []letter) {
-	hello := "HELLO WORLD"
+func (l *letters) update() {
+	//TODO: Refactor, move direction check up.
+	new := vec3.Add(l.pos, l.dir)
+	if int(new.X) < -len(l.text)*32 && l.dir.X < 0 {
+		l.pos.X = wWidth + 32
+	} else {
+		l.pos.X = new.X
+	}
+	if int(new.X) > len(l.text)*32+wWidth && l.dir.X > 0 {
+		l.pos.X = float32(-len(l.text) * 32)
+	} else {
+		l.pos.X = new.X
+	}
+}
 
-	for i := 0; i < len(hello); i++ {
-		a := letterIn(rune(hello[i]), letters)
-		renderer.Copy(font, &sdl.Rect{int32(a.x), int32(a.y), int32(a.w), int32(a.h)}, &sdl.Rect{int32(i * 32), 0, 32, 32})
+func (l *letters) draw(renderer *sdl.Renderer, font *sdl.Texture) {
+	text := l.text
+	for i := 0; i < len(text); i++ {
+		a := letterIn(rune(text[i]), l.letters)
+		renderer.Copy(font, &sdl.Rect{
+			X: int32(a.x),
+			Y: int32(a.y),
+			W: 32,
+			H: 32,
+		},
+			&sdl.Rect{
+				X: int32(l.pos.X + float32(i*32)),
+				Y: int32(l.pos.Y),
+				W: 32,
+				H: 32,
+			})
 	}
 }
 
@@ -207,22 +234,61 @@ func main() {
 	}
 
 	font := pngToTexture(renderer, "font2.png")
+	font2 := pngToTexture(renderer, "M_VISION.png")
 
 	startingChar := 32
 	index := 0
-	letters := make([]letter, 60)
+	var helloWorld letters
+	helloWorld.w = 32
+	helloWorld.h = 32
+	helloWorld.text = "HELLO WORLD"
+	helloWorld.pos = vec3.Vector3{
+		X: wWidth + 32,
+		Y: float32(wHeight/2 - helloWorld.h/2),
+		Z: 0,
+	}
+	helloWorld.dir = vec3.Vector3{
+		X: -2,
+		Y: 0,
+		Z: 0,
+	}
+
+	lets := make([]letter, 60)
 	for y := 0; y < 6; y++ {
 		for x := 0; x < 10; x++ {
-			letters[index].letter = rune(startingChar + index)
-			letters[index].h = 32
-			letters[index].w = 32
-			letters[index].x = x * 32
-			letters[index].y = y * 32
+			lets[index].letter = rune(startingChar + index)
+			lets[index].x = x * 32
+			lets[index].y = y * 32
+			helloWorld.letters = append(helloWorld.letters, lets[index])
 			index++
 		}
 	}
-	// fmt.Println(letters)
-	fmt.Println(letterIn('!', letters))
+
+	index = 0
+	var twitchtv letters
+	twitchtv.w = 32
+	twitchtv.h = 26
+	twitchtv.text = "TWITCH.TV/SHINDAKUN"
+	twitchtv.pos = vec3.Vector3{
+		X: float32(-len(twitchtv.text) * 32),
+		Y: float32(wHeight - twitchtv.h),
+		Z: 0,
+	}
+	twitchtv.dir = vec3.Vector3{
+		X: 4,
+		Y: 0,
+		Z: 0,
+	}
+	twitch := make([]letter, 60)
+	for y := 0; y < 6; y++ {
+		for x := 0; x < 10; x++ {
+			twitch[index].letter = rune(startingChar + index)
+			twitch[index].x = x * 32
+			twitch[index].y = y * 26
+			twitchtv.letters = append(twitchtv.letters, twitch[index])
+			index++
+		}
+	}
 
 	var elpasedTime float32
 	for {
@@ -244,7 +310,10 @@ func main() {
 		sf.draw(pixels)
 		tex.Update(nil, pixels, wWidth*4)
 		renderer.Copy(tex, nil, nil)
-		printFont(renderer, font, letters)
+		helloWorld.update()
+		helloWorld.draw(renderer, font)
+		twitchtv.update()
+		twitchtv.draw(renderer, font2)
 		renderer.Present()
 		clear(pixels)
 		elpasedTime = float32(time.Since(frameStart).Seconds() * 1000)
