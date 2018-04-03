@@ -133,7 +133,6 @@ func letterIn(letter rune, letters []letter) letter {
 }
 
 func (l *letters) update() {
-	//TODO: Refactor, move direction check up.
 	new := vec3.Add(l.pos, l.dir)
 	if l.dir.X < 0 {
 		if int(new.X) < -len(l.text)*32 {
