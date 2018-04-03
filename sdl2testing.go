@@ -135,15 +135,19 @@ func letterIn(letter rune, letters []letter) letter {
 func (l *letters) update() {
 	//TODO: Refactor, move direction check up.
 	new := vec3.Add(l.pos, l.dir)
-	if int(new.X) < -len(l.text)*32 && l.dir.X < 0 {
-		l.pos.X = wWidth + 32
-	} else {
-		l.pos.X = new.X
+	if l.dir.X < 0 {
+		if int(new.X) < -len(l.text)*32 {
+			l.pos.X = wWidth + 32
+		} else {
+			l.pos.X = new.X
+		}
 	}
-	if int(new.X) > len(l.text)*32+wWidth && l.dir.X > 0 {
-		l.pos.X = float32(-len(l.text) * 32)
-	} else {
-		l.pos.X = new.X
+	if l.dir.X > 0 {
+		if int(new.X) > len(l.text)*32+wWidth {
+			l.pos.X = float32(-len(l.text) * 32)
+		} else {
+			l.pos.X = new.X
+		}
 	}
 }
 
